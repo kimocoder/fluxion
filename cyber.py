@@ -326,6 +326,12 @@ def buildblock(size):
 		out_str += chr(a)
 	return(out_str)
 
+def usage():
+ print '---------------------------------------------------'
+ print 'USAGE: python cyber.py <url>'
+ print 'When the skids wont Learn.'
+ print '---------------------------------------------------'
+
 #http request
 def httpcall(url):
 	useragent_list()
@@ -390,7 +396,7 @@ class MonitorThread(threading.Thread):
 				print "% Request Sent ! Killing the skid " % (request_counter)
 				previous=request_counter
 			if flag==2:
-				print "\n Requests Fucker Stopped"
+				print "\n Cyber Requests Fucker Stopped"
 
 #execute 
 if len(sys.argv) < 2:
